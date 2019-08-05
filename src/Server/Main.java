@@ -140,11 +140,6 @@ public class Main implements HandlerCallback {
 	public static void main(String[] args){
 		Main mc = new Main();
 
-		UI mainUI = new UI();
-		if (args.length != 0) {
-			mainUI.setVisible(true);
-		}
-
 		mc.startRecvData();
 
 	}
