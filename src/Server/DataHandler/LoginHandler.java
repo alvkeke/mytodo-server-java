@@ -1,5 +1,7 @@
 package Server.DataHandler;
 
+import Server.DataBase.UsersOperator;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -20,17 +22,16 @@ public class LoginHandler {
     }
 
     public void handle(String username, String password){
-        String usernameIt, passwordIt;
-        usernameIt = "alvkeke";     //todo:go through the database of account
-        passwordIt = "password";    //delete this two line, change to the loop for going through the database
-
-        if(username.equals(usernameIt) && password.equals(passwordIt)){
+        UsersOperator uo = new UsersOperator();
+        int userId = uo.findUser(username, password);
+        uo.close();
+        if(userId > 0){
             int netkey = generateNetkey();
             String s = COMMAND_LOGIN_SUCCESS + String.valueOf(netkey);
             DatagramPacket packet = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
                 socket.send(packet);
-                callback.gotUserLogin(netkey, username);
+                callback.gotUserLogin(netkey, userId, username);
             } catch (IOException e){
                 e.printStackTrace();
                 new LoginHandler(callback, socket, address).handle(username, password);

@@ -2,7 +2,7 @@ package Server.DataHandler;
 
 public interface HandlerCallback {
 
-    void gotUserLogin(int netkey, String username);
+    void gotUserLogin(int netkey, int userId, String username);
     void gotUserLogout(int netkey);
 
     void beginRecvData(int netkey);

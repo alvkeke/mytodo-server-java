@@ -1,6 +1,10 @@
 package Server;
 
+import Server.DataBase.ProjectOperator;
+import Server.DataBase.TasksOperator;
+import Server.DataBase.UsersOperator;
 import Server.DataHandler.*;
+import Server.DataStruct.Functions;
 import Server.DataStruct.Project;
 import Server.DataStruct.TaskItem;
 
@@ -19,7 +23,6 @@ public class Main implements HandlerCallback {
 
 	private DatagramSocket socket;
 	private boolean stop;
-;
 
 	private HashMap<Integer, User> userList;
 	private HashMap<Integer, ArrayList<Integer>> confirmLists;
@@ -69,6 +72,9 @@ public class Main implements HandlerCallback {
 
 					if(userList.get(netkey) == null){
 						System.out.println(">unknown user:\n" + (int)cmd +":"+ data);
+						String s = COMMAND_YOU_ARE_OFFLINE + "";
+						packet.setData(s.getBytes());
+						socket.send(packet);
 					    continue;
 					}
 
@@ -106,6 +112,7 @@ public class Main implements HandlerCallback {
 						User user = userList.get(netkey);
 						user.setLastHeartTime(new Date().getTime());
 
+						printOnlineUser();
 					} else {
 						System.out.println(">unknown msg:\n" + (int)cmd +":"+ data);
 					}
@@ -115,6 +122,16 @@ public class Main implements HandlerCallback {
 				e.printStackTrace();
 			}
 
+			ArrayList<Integer> delNetkeys = new ArrayList<>();
+			long currentTime = new Date().getTime();
+			for(int key: userList.keySet()){
+				if(userList.get(key).getLastHeartTime() + 90000 < currentTime){
+					delNetkeys.add(key);
+				}
+			}
+			for(int k : delNetkeys){
+				userList.remove(k);
+			}
 		}
 	}
 
@@ -123,15 +140,22 @@ public class Main implements HandlerCallback {
 	public static void main(String[] args){
 		Main mc = new Main();
 
+		UI mainUI = new UI();
+		if (args.length != 0) {
+			mainUI.setVisible(true);
+		}
+
 		mc.startRecvData();
+
 	}
 
 	private void printOnlineUser(){
 		System.out.println("-------------------------------------------------");
+		long currentTime = new Date().getTime();
 		for(int netkey : userList.keySet()){
 			User u = userList.get(netkey);
 
-			System.out.println(u.getUsername() +"["+ u.getNetkey() +"]");
+			System.out.println(u.getUsername() +"["+ u.getNetkey() +"]: " + (currentTime - u.getLastHeartTime()));
 		}
 		System.out.println("-------------------------------------------------");
 	}
@@ -155,16 +179,32 @@ public class Main implements HandlerCallback {
 	}
 
 	@Override
-	public void gotUserLogin(int netkey, String username) {
-		User user = new User(netkey, username);
+	public void gotUserLogin(int netkey, int userId, String username) {
+		User user = new User(netkey, userId, username);
 		user.setLastHeartTime(new Date().getTime());
 
 		userList.put(netkey, user);
+		//todo:load user projects and tasks data from the database
+        ProjectOperator po = new ProjectOperator();
+        TasksOperator to = new TasksOperator();
+
+        ArrayList<Project> projects = po.getAllProjects(username);
+        ArrayList<TaskItem> taskItems = to.getAllTasks(username);
+
+        to.close();
+        po.close();
+
+		Functions.autoMoveTaskToProject(projects, taskItems);
+		user.getProjects().addAll(projects);
+
+		printUserData(netkey);
+
 		printOnlineUser();
 	}
 
 	@Override
 	public void gotUserLogout(int netkey){
+		//todo:save user projects and tasks data to the database
 	    userList.remove(netkey);
 		printOnlineUser();
 	}
@@ -201,6 +241,29 @@ public class Main implements HandlerCallback {
 	    User s = userList.get(netkey);
 
 		s.mergeData();
+		String username = s.getUsername();
+		ProjectOperator po = new ProjectOperator();
+		TasksOperator to = new TasksOperator();
+
+		for(Project p : s.getProjects()){
+			if(po.isExist(username, p.getId())){
+				po.modifyProject(username, p.getId(), p.getName(), p.getColor(), p.getLastModifyTime());
+			}else{
+				po.addProject(username, p.getId(), p.getName(), p.getColor(), p.getLastModifyTime());
+			}
+			for(TaskItem t : p.getTaskList()){
+				if(to.isExist(username, t.getId())){
+					to.modifyTask(username, t.getId(), t.getProId(), t.getTaskContent(),
+							t.getTime(), t.getLevel(), t.isFinished(), t.getLastModifyTime());
+				}else{
+					to.addTask(username, t.getId(), t.getProId(), t.getTaskContent(),
+							t.getTime(), t.getLevel(), t.isFinished(), t.getLastModifyTime());
+				}
+			}
+		}
+
+		po.close();
+		to.close();
 
 		printUserData(netkey);
 	}
@@ -209,13 +272,13 @@ public class Main implements HandlerCallback {
 	public void createProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
 	    User user = userList.get(netkey);
 
-//	    ArrayList<Project> userProjs = userData.get(netkey);
 		Project p = new Project(proId, proName, proColor);
 		p.setLastModifyTime(lastModifyTime);
 
-//		userProjs.add(p);
-
         user.addProject(p);
+        ProjectOperator po = new ProjectOperator();
+        po.addProject(user.getUsername(), proId, proName, proColor, lastModifyTime);
+        po.close();
 
 		printUserData(netkey);
 	}
@@ -223,95 +286,74 @@ public class Main implements HandlerCallback {
 	@Override
 	public void deleteProject(int netkey, long proId) {
 
-//	    ArrayList<Project> userProjs = userData.get(netkey);
-//		Project p = Functions.findProjectInProjectList(userProjs, proId);
-//		if(p != null){
-//			userProjs.remove(p);
-//		}
-
 		User user = userList.get(netkey);
 		user.delProject(proId);
+
+		ProjectOperator po = new ProjectOperator();
+		TasksOperator to = new TasksOperator();
+		po.delProject(user.getUsername(), proId);
+		to.delTaskInProject(user.getUsername(), proId);
+		to.close();
+		po.close();
 
 		printUserData(netkey);
 	}
 
 	@Override
-	public void createTask(int netkey, long taskId, long proId, String content, long time, int level, boolean isFinished, long lastModifyTime) {
+	public void createTask(int netkey, long taskId, long proId, String content,
+						   long time, int level, boolean isFinished, long lastModifyTime) {
 
-//		ArrayList<Project> projects = userData.get(netkey);
-//
-//		if(projects == null) return;
-//
-//		Project p = Functions.findProjectInProjectList(projects, proId);
-//		if(p == null){
-//			return;
-//		}
         User user = userList.get(netkey);
 
 		TaskItem t = new TaskItem(proId, taskId,content, time, level);
 		user.addTask(proId, t);
 		t.setLastModifyTime(lastModifyTime);
 
+		TasksOperator to = new TasksOperator();
+		to.addTask(user.getUsername(), taskId, proId, content, time, level, isFinished, lastModifyTime);
+		to.close();
+
         printUserData(netkey);
 	}
 
 	@Override
 	public void deleteTask(int netkey, long taskId, long proId) {
-//	    ArrayList<Project> projects = userData.get(netkey);
-//		Project p = Functions.findProjectInProjectList(projects, proId);
-//		if(p == null){
-//			return;
-//		}
-//		TaskItem t = p.findTask(taskId);
-//		p.getTaskList().remove(t);
 
         userList.get(netkey).deleteTask(taskId, proId);
+
+        TasksOperator to = new TasksOperator();
+        to.delTask(userList.get(netkey).getUsername(), taskId);
+        to.close();
 
         printUserData(netkey);
 	}
 
 	@Override
 	public void modifyProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
-//	    ArrayList<Project> projects = userData.get(netkey);
-//		Project p = Functions.findProjectInProjectList(projects, proId);
-//		if(p!=null){
-//			p.changeName(proName);
-//			p.changeColor(proColor);
-//			p.setLastModifyTime(lastModifyTime);
-//		}
 
-		userList.get(netkey).modifyProject(proId, proName, proColor, lastModifyTime);
+		User user = userList.get(netkey);
+		user.modifyProject(proId, proName, proColor, lastModifyTime);
+
+		ProjectOperator po = new ProjectOperator();
+		po.modifyProject(user.getUsername(), proId, proName, proColor, lastModifyTime);
+		po.close();
+
+		po.close();
+
 
 		printUserData(netkey);
 	}
 
 	@Override
-	public void modifyTask(int netkey, long taskId, long oldProId, long newProId, String content, long time, int level, boolean isFinished, long lastModifyTime) {
-//		ArrayList<Project> projects = userData.get(netkey);
-//		Project p = Functions.findProjectInProjectList(projects, oldProId);
-//		if(p == null){
-//			return;
-//		}
-//		TaskItem t = p.findTask(taskId);
-//		if(t == null){
-//			return;
-//		}
-//		t.setContent(content);
-//		t.setTime(time);
-//		t.setLevel(level);
-//		t.setFinished(isFinished);
-//		t.setLastModifyTime(lastModifyTime);
-//
-//		if(oldProId != newProId) {
-//			Project pn = Functions.findProjectInProjectList(projects, newProId);
-//			if (pn == null) {
-//				return;
-//			}
-//			pn.addTask(t);
-//			p.getTaskList().remove(t);
-//		}
+	public void modifyTask(int netkey, long taskId, long oldProId, long newProId, String content,
+						   long time, int level, boolean isFinished, long lastModifyTime) {
+		User user = userList.get(netkey);
 
-        userList.get(netkey).modifyTask(taskId, oldProId, newProId, content, taskId, level, isFinished, lastModifyTime);
+        user.modifyTask(taskId, oldProId, newProId, content, taskId, level, isFinished, lastModifyTime);
+
+        TasksOperator to = new TasksOperator();
+        to.modifyTask(user.getUsername(), taskId, newProId, content, time, level, isFinished, lastModifyTime);
+        to.close();
 
 		printUserData(netkey);
 	}

@@ -5,32 +5,35 @@ import Server.DataStruct.Project;
 import Server.DataStruct.TaskItem;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 class User {
 
+    private int userId;
 	private String username;
 	private int netkey;
 
 	private ArrayList<Project> projects;
 	private ArrayList<Project> tmpProjs;
 	private ArrayList<TaskItem> tmpTasks;
-//	private HashMap<Integer, String> confirmList;
 
 	private long lastHeartTime;
 
-    User(int netkey, String username){
+    User(int netkey, int userId, String username){
 	    projects = new ArrayList<>();
 	    tmpProjs = new ArrayList<>();
 	    tmpTasks = new ArrayList<>();
-//		confirmList = new HashMap<>();
 
 		this.netkey = netkey;
+		this.userId = userId;
 	    this.username = username;
     }
 
     public void setLastHeartTime(long lastHeartTime) {
         this.lastHeartTime = lastHeartTime;
+    }
+
+    public long getLastHeartTime() {
+        return lastHeartTime;
     }
 
     void initConfirmList(){
@@ -150,7 +153,11 @@ class User {
 		return username;
 	}
 
-	public ArrayList<Project> getProjects() {
+    public int getUserId() {
+        return userId;
+    }
+
+    public ArrayList<Project> getProjects() {
 		return projects;
     }
 }
