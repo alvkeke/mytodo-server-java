@@ -1,8 +1,8 @@
 package Server;
 
+import Server.Controller.ControllerRunnable;
 import Server.DataBase.ProjectOperator;
 import Server.DataBase.TasksOperator;
-import Server.DataBase.UsersOperator;
 import Server.DataHandler.*;
 import Server.DataStruct.Functions;
 import Server.DataStruct.Project;
@@ -24,13 +24,15 @@ public class Main implements HandlerCallback {
 	private DatagramSocket socket;
 	private boolean stop;
 
-	private HashMap<Integer, User> userList;
+	private HashMap<Integer, UserOnline> userList;
 	private HashMap<Integer, ArrayList<Integer>> confirmLists;
 
 	private Main(){
 
 	    userList = new HashMap<>();
 	    confirmLists = new HashMap<>();
+
+	    new Thread(new ControllerRunnable(userList)).start();
 
 		stop = false;
 		try {
@@ -109,7 +111,7 @@ public class Main implements HandlerCallback {
 					} else if (cmd >= COMMAND_ADD_PROJECT && cmd <= COMMAND_EDIT_TASK) {
 						new DataModifier(this, socket, packet.getSocketAddress()).handle(cmd, data);
 					} else if (cmd == COMMAND_HEART_BEAT){
-						User user = userList.get(netkey);
+						UserOnline user = userList.get(netkey);
 						user.setLastHeartTime(new Date().getTime());
 
 						printOnlineUser();
@@ -122,6 +124,7 @@ public class Main implements HandlerCallback {
 				e.printStackTrace();
 			}
 
+			//todo:放到新线程里面运行
 			ArrayList<Integer> delNetkeys = new ArrayList<>();
 			long currentTime = new Date().getTime();
 			for(int key: userList.keySet()){
@@ -148,7 +151,7 @@ public class Main implements HandlerCallback {
 		System.out.println("-------------------------------------------------");
 		long currentTime = new Date().getTime();
 		for(int netkey : userList.keySet()){
-			User u = userList.get(netkey);
+			UserOnline u = userList.get(netkey);
 
 			System.out.println(u.getUsername() +"["+ u.getNetkey() +"]: " + (currentTime - u.getLastHeartTime()));
 		}
@@ -175,7 +178,7 @@ public class Main implements HandlerCallback {
 
 	@Override
 	public void gotUserLogin(int netkey, int userId, String username) {
-		User user = new User(netkey, userId, username);
+		UserOnline user = new UserOnline(netkey, userId, username);
 		user.setLastHeartTime(new Date().getTime());
 
 		userList.put(netkey, user);
@@ -206,13 +209,13 @@ public class Main implements HandlerCallback {
 
 	@Override
 	public void beginRecvData(int netkey) {
-		User user = userList.get(netkey);
+		UserOnline user = userList.get(netkey);
 		user.initConfirmList();
 	}
 
 	@Override
 	public void recvProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
-		User user = userList.get(netkey);
+		UserOnline user = userList.get(netkey);
 
 		Project p = new Project(proId, proName, proColor);
 		p.setLastModifyTime(lastModifyTime);
@@ -222,7 +225,7 @@ public class Main implements HandlerCallback {
 
 	@Override
 	public void recvTask(int netkey, long taskId, long proId, String taskContent, long time, int level, boolean isFinished, long lastModifyTime) {
-		User user = userList.get(netkey);
+		UserOnline user = userList.get(netkey);
 
 		TaskItem t = new TaskItem(proId, taskId, taskContent, time, level);
 		t.setFinished(isFinished);
@@ -233,7 +236,7 @@ public class Main implements HandlerCallback {
 
 	@Override
 	public void endRecvData(int netkey) {
-	    User s = userList.get(netkey);
+	    UserOnline s = userList.get(netkey);
 
 		s.mergeData();
 		String username = s.getUsername();
@@ -265,7 +268,7 @@ public class Main implements HandlerCallback {
 
 	@Override
 	public void createProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
-	    User user = userList.get(netkey);
+	    UserOnline user = userList.get(netkey);
 
 		Project p = new Project(proId, proName, proColor);
 		p.setLastModifyTime(lastModifyTime);
@@ -281,7 +284,7 @@ public class Main implements HandlerCallback {
 	@Override
 	public void deleteProject(int netkey, long proId) {
 
-		User user = userList.get(netkey);
+		UserOnline user = userList.get(netkey);
 		user.delProject(proId);
 
 		ProjectOperator po = new ProjectOperator();
@@ -298,7 +301,7 @@ public class Main implements HandlerCallback {
 	public void createTask(int netkey, long taskId, long proId, String content,
 						   long time, int level, boolean isFinished, long lastModifyTime) {
 
-        User user = userList.get(netkey);
+        UserOnline user = userList.get(netkey);
 
 		TaskItem t = new TaskItem(proId, taskId,content, time, level);
 		user.addTask(proId, t);
@@ -326,7 +329,7 @@ public class Main implements HandlerCallback {
 	@Override
 	public void modifyProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
 
-		User user = userList.get(netkey);
+		UserOnline user = userList.get(netkey);
 		user.modifyProject(proId, proName, proColor, lastModifyTime);
 
 		ProjectOperator po = new ProjectOperator();
@@ -342,7 +345,7 @@ public class Main implements HandlerCallback {
 	@Override
 	public void modifyTask(int netkey, long taskId, long oldProId, long newProId, String content,
 						   long time, int level, boolean isFinished, long lastModifyTime) {
-		User user = userList.get(netkey);
+		UserOnline user = userList.get(netkey);
 
         user.modifyTask(taskId, oldProId, newProId, content, taskId, level, isFinished, lastModifyTime);
 

@@ -6,7 +6,7 @@ import Server.DataStruct.TaskItem;
 
 import java.util.ArrayList;
 
-class User {
+public class UserOnline {
 
     private int userId;
 	private String username;
@@ -18,7 +18,7 @@ class User {
 
 	private long lastHeartTime;
 
-    User(int netkey, int userId, String username){
+    public UserOnline(int netkey, int userId, String username){
 	    projects = new ArrayList<>();
 	    tmpProjs = new ArrayList<>();
 	    tmpTasks = new ArrayList<>();
