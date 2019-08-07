@@ -55,6 +55,18 @@ public class Main implements HandlerCallback {
 				String data = new String(packet.getData()).substring(1).trim();
 
 
+				//todo:放到新线程里面运行
+				ArrayList<Integer> delNetkeys = new ArrayList<>();
+				long currentTime = new Date().getTime();
+				for(int key: userList.keySet()){
+					if(userList.get(key).getLastHeartTime() + 90000 < currentTime){
+						delNetkeys.add(key);
+					}
+				}
+				for(int k : delNetkeys){
+					userList.remove(k);
+				}
+
 				if(cmd == COMMAND_LOGIN){
 
 					String[] userInfo = data.split("\\|");
@@ -124,17 +136,6 @@ public class Main implements HandlerCallback {
 				e.printStackTrace();
 			}
 
-			//todo:放到新线程里面运行
-			ArrayList<Integer> delNetkeys = new ArrayList<>();
-			long currentTime = new Date().getTime();
-			for(int key: userList.keySet()){
-				if(userList.get(key).getLastHeartTime() + 90000 < currentTime){
-					delNetkeys.add(key);
-				}
-			}
-			for(int k : delNetkeys){
-				userList.remove(k);
-			}
 		}
 	}
 
