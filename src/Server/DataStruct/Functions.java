@@ -137,6 +137,7 @@ public class Functions {
                     tOld.setTime(t.getTime());
                     tOld.setLevel(t.getLevel());
                     tOld.setContent(t.getTaskContent());
+                    tOld.setFinished(t.isFinished());
                     tOld.setLastModifyTime(t.getLastModifyTime());
                 }
             }
