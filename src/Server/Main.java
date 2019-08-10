@@ -124,9 +124,8 @@ public class Main implements HandlerCallback {
 						new DataModifier(this, socket, packet.getSocketAddress()).handle(cmd, data);
 					} else if (cmd == COMMAND_HEART_BEAT){
 						UserOnline user = userList.get(netkey);
+                        printOnlineUser();
 						user.setLastHeartTime(new Date().getTime());
-
-						printOnlineUser();
 					} else {
 						System.out.println(">unknown msg:\n" + (int)cmd +":"+ data);
 					}
