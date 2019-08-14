@@ -21,6 +21,8 @@ import static Server.Constants.*;
 
 public class Main implements HandlerCallback {
 
+    private final static int MAX_MISSING_HEART_BEAT_TIME = 90000;
+
 	private DatagramSocket socket;
 	private boolean stop;
 
@@ -59,7 +61,7 @@ public class Main implements HandlerCallback {
 				ArrayList<Integer> delNetkeys = new ArrayList<>();
 				long currentTime = new Date().getTime();
 				for(int key: userList.keySet()){
-					if(userList.get(key).getLastHeartTime() + 90000 < currentTime){
+					if(userList.get(key).getLastHeartTime() + MAX_MISSING_HEART_BEAT_TIME < currentTime){
 						delNetkeys.add(key);
 					}
 				}
