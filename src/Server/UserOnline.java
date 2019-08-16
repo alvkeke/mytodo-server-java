@@ -13,15 +13,15 @@ public class UserOnline {
 	private int netkey;
 
 	private ArrayList<Project> projects;
-	private ArrayList<Project> tmpProjs;
-	private ArrayList<TaskItem> tmpTasks;
+	private ArrayList<Project> projsInTmp;
+	private ArrayList<TaskItem> tasksInTmp;
 
 	private long lastHeartTime;
 
     public UserOnline(int netkey, int userId, String username){
 	    projects = new ArrayList<>();
-	    tmpProjs = new ArrayList<>();
-	    tmpTasks = new ArrayList<>();
+	    projsInTmp = new ArrayList<>();
+	    tasksInTmp = new ArrayList<>();
 
 		this.netkey = netkey;
 		this.userId = userId;
@@ -119,30 +119,30 @@ public class UserOnline {
 	}
 
 	void addTmpProject(Project p){
-    	tmpProjs.add(p);
+    	projsInTmp.add(p);
 	}
 
 	void addTmpTask(TaskItem t){
-    	tmpTasks.add(t);
+    	tasksInTmp.add(t);
 	}
 
 	void mergeData(){
-    	if(tmpProjs == null) return;
+    	if(projsInTmp == null) return;
 
-    	Functions.mergeProjectList(projects, tmpProjs);
+    	Functions.mergeProjectList(projects, projsInTmp);
 
-		ArrayList<TaskItem> tmp = new ArrayList<>();
+		ArrayList<TaskItem> tasksOld = new ArrayList<>();
 
 		for(Project p : projects){
-			tmp.addAll(p.getTaskList());
+			tasksOld.addAll(p.getTaskList());
 			p.getTaskList().clear();
 		}
 
-		Functions.mergeTaskList(tmp, tmpTasks);
-		Functions.autoMoveTaskToProject(projects, tmp);
+		Functions.mergeTaskList(tasksOld, tasksInTmp);
+		Functions.autoMoveTaskToProject(projects, tasksOld);
 
-		tmpProjs.clear();
-		tmpTasks.clear();
+		projsInTmp.clear();
+		tasksInTmp.clear();
 	}
 
 	public int getNetkey() {

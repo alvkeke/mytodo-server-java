@@ -212,6 +212,21 @@ public class Main implements HandlerCallback {
 	@Override
 	public void beginRecvData(int netkey) {
 		UserOnline user = userList.get(netkey);
+
+		user.getProjects().clear();
+
+		ProjectOperator po = new ProjectOperator();
+		TasksOperator to = new TasksOperator();
+
+		ArrayList<Project> projects = po.getAllProjects(user.getUsername());
+		ArrayList<TaskItem> taskItems = to.getAllTasks(user.getUsername());
+
+		to.close();
+		po.close();
+
+		Functions.autoMoveTaskToProject(projects, taskItems);
+		user.getProjects().addAll(projects);
+
 		user.initConfirmList();
 	}
 
