@@ -5,6 +5,8 @@ import Server.DataBase.TasksOperator;
 import Server.DataBase.UsersOperator;
 import Server.DataStruct.Project;
 import Server.DataStruct.TaskItem;
+import Server.Main;
+import Server.UserData;
 import Server.UserOnline;
 import Server.UserToSend;
 
@@ -225,7 +227,9 @@ public class ControllerRunnable implements Runnable{
                         //CONTROLLER_KICK_USER_OUT + adminId | userNetkey
                         if(splitMsg.length<2) continue;
                         int netkey = Integer.parseInt(splitMsg[1]);
+                        String username = userList.get(netkey).getUsername();
                         userList.remove(netkey);
+                        //todo:让Main类把无用数据列表移除
                     }
                     else if (cmd == CONTROLLER_ADD_PROJECT)
                     {

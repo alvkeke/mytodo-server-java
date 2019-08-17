@@ -27,12 +27,14 @@ public class Main implements HandlerCallback {
 	private boolean stop;
 
 	private HashMap<Integer, UserOnline> userList;
+	private ArrayList<UserData> userDataList;
 	private HashMap<Integer, ArrayList<Integer>> confirmLists;
 
 	private Main(){
 
 	    userList = new HashMap<>();
 	    confirmLists = new HashMap<>();
+	    userDataList = new ArrayList<>();
 
 	    new Thread(new ControllerRunnable(userList)).start();
 
@@ -68,6 +70,7 @@ public class Main implements HandlerCallback {
 				for(int k : delNetkeys){
 					userList.remove(k);
 				}
+				autoRemoveUselessData();
 
 				if(cmd == COMMAND_LOGIN){
 
@@ -96,39 +99,54 @@ public class Main implements HandlerCallback {
 
 					if (cmd == COMMAND_LOGOUT) {
 						new LogoutHandler(this, socket, packet.getSocketAddress()).handle(netkey);
-					} else if (cmd == COMMAND_SEND_DATA_BEGIN || cmd == COMMAND_SEND_DATA_PROJS ||
-							cmd == COMMAND_SEND_DATA_TASKS || cmd == COMMAND_SEND_DATA_END) {
+					}
+					else if (cmd == COMMAND_SEND_DATA_BEGIN || cmd == COMMAND_SEND_DATA_PROJS ||
+							cmd == COMMAND_SEND_DATA_TASKS || cmd == COMMAND_SEND_DATA_END)
+					{
 
 						new DataRecvHandler(this, socket, packet.getSocketAddress()).handle(cmd, splitMsg);
-					} else if (cmd == COMMAND_GET_DATA) {
+					}
+					else if (cmd == COMMAND_GET_DATA)
+					{
 						ArrayList<Integer> confirmList = new ArrayList<>();
 						this.confirmLists.put(netkey, confirmList);
-						ArrayList<Project> userProjs = userList.get(netkey).getProjects();
+						ArrayList<Project> userProjs = userList.get(netkey).getData().getProjects();
 						new DataSender(this, socket, packet.getSocketAddress()).send(netkey, userProjs, confirmList);
-					} else if (cmd == COMMAND_CONFIRM_SEND_BEGIN) {
+					}
+					else if (cmd == COMMAND_CONFIRM_SEND_BEGIN)
+					{
 
-					} else if (cmd == COMMAND_CONFIRM_DATA) {
+					}
+					else if (cmd == COMMAND_CONFIRM_DATA)
+					{
 						int dataId = Integer.parseInt(splitMsg[1]);
 						ArrayList<Integer> confirmList = confirmLists.get(netkey);
 						confirmList.remove(Integer.valueOf(dataId));
-					} else if (cmd == COMMAND_CONFIRM_SEND_END) {
+					}
+					else if (cmd == COMMAND_CONFIRM_SEND_END)
+					{
 						ArrayList<Integer> confirmList = confirmLists.get(netkey);
 						String s;
-						if(confirmList.isEmpty()){
+						if(confirmList.isEmpty()) {
 							s = COMMAND_RESEND_NO_NEED + String.valueOf(netkey);
-						}else{
+						} else {
 							s = COMMAND_RESEND_NEED + String.valueOf(netkey);
 						}
 						packet.setData(s.getBytes());
 						socket.send(packet);
 
-					} else if (cmd >= COMMAND_ADD_PROJECT && cmd <= COMMAND_EDIT_TASK) {
+					}
+					else if (cmd >= COMMAND_ADD_PROJECT && cmd <= COMMAND_EDIT_TASK)
+					{
 						new DataModifier(this, socket, packet.getSocketAddress()).handle(cmd, data);
-					} else if (cmd == COMMAND_HEART_BEAT){
+					}
+					else if (cmd == COMMAND_HEART_BEAT)
+					{
 						UserOnline user = userList.get(netkey);
                         printOnlineUser();
 						user.setLastHeartTime(new Date().getTime());
-					} else {
+					}
+					else {
 						System.out.println(">unknown msg:\n" + (int)cmd +":"+ data);
 					}
 				}
@@ -163,7 +181,7 @@ public class Main implements HandlerCallback {
 	private void printUserData(int netkey){
 		System.out.println(">>>>>>>start print user data:");
 		System.out.println("user info: " + userList.get(netkey).getUsername() + "[" + netkey +"]" );
-		ArrayList<Project> projects = userList.get(netkey).getProjects();
+		ArrayList<Project> projects = userList.get(netkey).getData().getProjects();
 		printProjectList(projects);
 		System.out.println(">>>>>>>end print.\n");
 	}
@@ -180,59 +198,102 @@ public class Main implements HandlerCallback {
 
 	@Override
 	public void gotUserLogin(int netkey, int userId, String username) {
+
+		boolean skip = false;
+		UserData data = null;
+		for (UserData d : userDataList){
+			if (d.getUsername().equals(username)) {
+
+                data = d;
+				skip = true;
+				break;
+			}
+		}
+		if(!skip){
+			UserData d = new UserData(userId, username);
+
+	        ProjectOperator po = new ProjectOperator();
+    	    TasksOperator to = new TasksOperator();
+			ArrayList<Project> projects = po.getAllProjects(username);
+			ArrayList<TaskItem> tasks = to.getAllTasks(username);
+
+			Functions.autoMoveTaskToProject(projects, tasks);
+			d.getProjects().addAll(projects);
+
+			userDataList.add(d);
+
+			data = d;
+
+		}
+
 		UserOnline user = new UserOnline(netkey, userId, username);
+		user.setData(data);
 		user.setLastHeartTime(new Date().getTime());
-
 		userList.put(netkey, user);
-		//todo:load user projects and tasks data from the database
-        ProjectOperator po = new ProjectOperator();
-        TasksOperator to = new TasksOperator();
-
-        ArrayList<Project> projects = po.getAllProjects(username);
-        ArrayList<TaskItem> taskItems = to.getAllTasks(username);
-
-        to.close();
-        po.close();
-
-		Functions.autoMoveTaskToProject(projects, taskItems);
-		user.getProjects().addAll(projects);
-
-		printUserData(netkey);
-
-		printOnlineUser();
 	}
 
 	@Override
 	public void gotUserLogout(int netkey){
-		//todo:save user projects and tasks data to the database
+		UserData data = userList.get(netkey).getData();
+		String username = userList.get(netkey).getUsername();
 	    userList.remove(netkey);
+
+		//如果在线用户中没有持有登出用户的数据列表的，则在移除内存上的数据列表
+		if (!isUserOnline(username)) {
+			userDataList.remove(data);
+		}
+
 		printOnlineUser();
+	}
+
+	private boolean isUserOnline(String username){
+		for (UserOnline user : userList.values()){
+			if (user.getUsername().equals(username)){
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public void autoRemoveUselessData(){
+		ArrayList<UserData> dataToRemove = new ArrayList<>();
+
+		for (UserData data: userDataList){
+			boolean useless = true;
+			for (UserOnline user : userList.values()){
+				if (data.getUsername().equals(user.getUsername())){
+					useless = false;
+					break;
+				}
+			}
+			if (useless){
+				dataToRemove.add(data);
+			}
+		}
+
+		userDataList.removeAll(dataToRemove);
 	}
 
 	@Override
 	public void beginRecvData(int netkey) {
 		UserOnline user = userList.get(netkey);
+		UserData data = user.getData();
 
-		user.getProjects().clear();
+		if (data.isBusy()){
+			return;
+		}
 
-		ProjectOperator po = new ProjectOperator();
-		TasksOperator to = new TasksOperator();
+		data.setBusy(netkey);
 
-		ArrayList<Project> projects = po.getAllProjects(user.getUsername());
-		ArrayList<TaskItem> taskItems = to.getAllTasks(user.getUsername());
 
-		to.close();
-		po.close();
-
-		Functions.autoMoveTaskToProject(projects, taskItems);
-		user.getProjects().addAll(projects);
-
-		user.initConfirmList();
 	}
 
 	@Override
 	public void recvProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
 		UserOnline user = userList.get(netkey);
+		if (!user.getData().isOperating(netkey)){
+			return;
+		}
 
 		Project p = new Project(proId, proName, proColor);
 		p.setLastModifyTime(lastModifyTime);
@@ -243,6 +304,9 @@ public class Main implements HandlerCallback {
 	@Override
 	public void recvTask(int netkey, long taskId, long proId, String taskContent, long time, int level, boolean isFinished, long lastModifyTime) {
 		UserOnline user = userList.get(netkey);
+		if (!user.getData().isOperating(netkey)){
+			return;
+		}
 
 		TaskItem t = new TaskItem(proId, taskId, taskContent, time, level);
 		t.setFinished(isFinished);
@@ -254,13 +318,16 @@ public class Main implements HandlerCallback {
 	@Override
 	public void endRecvData(int netkey) {
 	    UserOnline s = userList.get(netkey);
+	    if (!s.getData().isOperating(netkey)){
+	    	return;
+		}
 
 		s.mergeData();
 		String username = s.getUsername();
 		ProjectOperator po = new ProjectOperator();
 		TasksOperator to = new TasksOperator();
 
-		for(Project p : s.getProjects()){
+		for(Project p : s.getData().getProjects()){
 			if(po.isExist(username, p.getId())){
 				po.modifyProject(username, p.getId(), p.getName(), p.getColor(), p.getLastModifyTime());
 			}else{
@@ -280,19 +347,21 @@ public class Main implements HandlerCallback {
 		po.close();
 		to.close();
 
+		s.getData().setFree();
+
 		printUserData(netkey);
 	}
 
 	@Override
 	public void createProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
-	    UserOnline user = userList.get(netkey);
+	    UserData data = userList.get(netkey).getData();
 
 		Project p = new Project(proId, proName, proColor);
 		p.setLastModifyTime(lastModifyTime);
 
-        user.addProject(p);
+        data.addProject(p);
         ProjectOperator po = new ProjectOperator();
-        po.addProject(user.getUsername(), proId, proName, proColor, lastModifyTime);
+        po.addProject(data.getUsername(), proId, proName, proColor, lastModifyTime);
         po.close();
 
 		printUserData(netkey);
@@ -301,13 +370,13 @@ public class Main implements HandlerCallback {
 	@Override
 	public void deleteProject(int netkey, long proId) {
 
-		UserOnline user = userList.get(netkey);
-		user.delProject(proId);
+		UserData data = userList.get(netkey).getData();
+		data.delProject(proId);
 
 		ProjectOperator po = new ProjectOperator();
 		TasksOperator to = new TasksOperator();
-		po.delProject(user.getUsername(), proId);
-		to.delTaskInProject(user.getUsername(), proId);
+		po.delProject(data.getUsername(), proId);
+		to.delTaskInProject(data.getUsername(), proId);
 		to.close();
 		po.close();
 
@@ -318,14 +387,14 @@ public class Main implements HandlerCallback {
 	public void createTask(int netkey, long taskId, long proId, String content,
 						   long time, int level, boolean isFinished, long lastModifyTime) {
 
-        UserOnline user = userList.get(netkey);
+        UserData data = userList.get(netkey).getData();
 
 		TaskItem t = new TaskItem(proId, taskId,content, time, level);
-		user.addTask(proId, t);
+		data.addTask(proId, t);
 		t.setLastModifyTime(lastModifyTime);
 
 		TasksOperator to = new TasksOperator();
-		to.addTask(user.getUsername(), taskId, proId, content, time, level, isFinished, lastModifyTime);
+		to.addTask(data.getUsername(), taskId, proId, content, time, level, isFinished, lastModifyTime);
 		to.close();
 
         printUserData(netkey);
@@ -334,7 +403,7 @@ public class Main implements HandlerCallback {
 	@Override
 	public void deleteTask(int netkey, long taskId, long proId) {
 
-        userList.get(netkey).deleteTask(taskId, proId);
+        userList.get(netkey).getData().deleteTask(taskId, proId);
 
         TasksOperator to = new TasksOperator();
         to.delTask(userList.get(netkey).getUsername(), taskId);
@@ -346,11 +415,11 @@ public class Main implements HandlerCallback {
 	@Override
 	public void modifyProject(int netkey, long proId, String proName, int proColor, long lastModifyTime) {
 
-		UserOnline user = userList.get(netkey);
-		user.modifyProject(proId, proName, proColor, lastModifyTime);
+		UserData data = userList.get(netkey).getData();
+		data.modifyProject(proId, proName, proColor, lastModifyTime);
 
 		ProjectOperator po = new ProjectOperator();
-		po.modifyProject(user.getUsername(), proId, proName, proColor, lastModifyTime);
+		po.modifyProject(data.getUsername(), proId, proName, proColor, lastModifyTime);
 		po.close();
 
 		po.close();
@@ -362,12 +431,12 @@ public class Main implements HandlerCallback {
 	@Override
 	public void modifyTask(int netkey, long taskId, long oldProId, long newProId, String content,
 						   long time, int level, boolean isFinished, long lastModifyTime) {
-		UserOnline user = userList.get(netkey);
+		UserData data = userList.get(netkey).getData();
 
-        user.modifyTask(taskId, oldProId, newProId, content, taskId, level, isFinished, lastModifyTime);
+        data.modifyTask(taskId, oldProId, newProId, content, taskId, level, isFinished, lastModifyTime);
 
         TasksOperator to = new TasksOperator();
-        to.modifyTask(user.getUsername(), taskId, newProId, content, time, level, isFinished, lastModifyTime);
+        to.modifyTask(data.getUsername(), taskId, newProId, content, time, level, isFinished, lastModifyTime);
         to.close();
 
 		printUserData(netkey);
