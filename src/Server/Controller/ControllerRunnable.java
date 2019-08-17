@@ -5,8 +5,6 @@ import Server.DataBase.TasksOperator;
 import Server.DataBase.UsersOperator;
 import Server.DataStruct.Project;
 import Server.DataStruct.TaskItem;
-import Server.Main;
-import Server.UserData;
 import Server.UserOnline;
 import Server.UserToSend;
 
@@ -69,14 +67,14 @@ public class ControllerRunnable implements Runnable{
                 String[] splitMsg = msg.split("\\|");
                 int adminIdRecv = Integer.parseInt(splitMsg[0]);
 
-                if(new Date().getTime() - lastCheckTime > 100000){
+                if (new Date().getTime() - lastCheckTime > 100000) {
                     //上一个管理员下线,以便新的管理员登录
                     currentAdminId = 0;
                 }
 
-                if (cmd == CONTROLLER_LOGIN){
+                if (cmd == CONTROLLER_LOGIN) {
                     //CONTROLLER_LOGIN + username | password
-                    if(currentAdminId != 0){
+                    if (currentAdminId != 0) {
                         //同一时间只能用一个管理员在线
                         String s = CONTROLLER_LOGIN_DENIED + "";
                         packet.setData(s.getBytes());
@@ -85,12 +83,12 @@ public class ControllerRunnable implements Runnable{
                         continue;
                     }
                     //判断管理员登录
-                    if(splitMsg.length<2)continue;
+                    if (splitMsg.length < 2) continue;
                     String username = splitMsg[0];
                     String password = splitMsg[1];
 
                     UsersOperator uo = new UsersOperator();
-                    if(uo.adminLogin(username, password)){
+                    if (uo.adminLogin(username, password)) {
                         int genAdminId = generateNetkey();
                         String s = CONTROLLER_LOGIN_SUCCESS + String.valueOf(genAdminId);
                         packet.setData(s.getBytes());
@@ -102,44 +100,37 @@ public class ControllerRunnable implements Runnable{
                 } else {
                     //CONTROLLER_CMD + adminId | data
                     int recvAdminId = Integer.parseInt(splitMsg[0]);
-                    if(recvAdminId != currentAdminId) continue;
+                    if (recvAdminId != currentAdminId) continue;
 
-                    if(cmd == CONTROLLER_LOGOUT)
-                    {
+                    if (cmd == CONTROLLER_LOGOUT) {
                         currentAdminId = 0;
-                    }
-                    else if(cmd == CONTROLLER_HEART_BEAT)
-                    {
+                    } else if (cmd == CONTROLLER_HEART_BEAT) {
                         lastCheckTime = new Date().getTime();
-                    }
-                    else if (cmd == CONTROLLER_GET_ONLINE_USERS)
-                    {
-                        String s = CONTROLLER_SEND_USER_BEGIN +"";
+                    } else if (cmd == CONTROLLER_GET_ONLINE_USERS) {
+                        String s = CONTROLLER_SEND_USER_BEGIN + "";
                         packet.setData(s.getBytes());
                         socket.send(packet);
 
-                        for (int key : userList.keySet()){
+                        for (int key : userList.keySet()) {
                             UserOnline user = userList.get(key);
-                            s = CONTROLLER_SEND_ONLINE_USER + user.getUsername() +"|"+ user.getNetkey();
+                            s = CONTROLLER_SEND_ONLINE_USER + user.getUsername() + "|" + user.getNetkey();
                             packet.setData(s.getBytes());
                             socket.send(packet);
                         }
                         s = CONTROLLER_SEND_USER_END + "";
                         packet.setData(s.getBytes());
                         socket.send(packet);
-                    }
-                    else if (cmd == CONTROLLER_GET_ALL_USERS)
-                    {
+                    } else if (cmd == CONTROLLER_GET_ALL_USERS) {
 
                         UsersOperator uo = new UsersOperator();
                         ArrayList<UserToSend> users = uo.getAllUsers();
 
-                        String s = CONTROLLER_SEND_USER_BEGIN +"";
+                        String s = CONTROLLER_SEND_USER_BEGIN + "";
                         packet.setData(s.getBytes());
                         socket.send(packet);
 
-                        for (UserToSend user : users){
-                            s = CONTROLLER_SEND_DATABASE_USER + user.getUsername() +"|"+ user.getPassword() +"|"+ user.isAdmin();
+                        for (UserToSend user : users) {
+                            s = CONTROLLER_SEND_DATABASE_USER + user.getUsername() + "|" + user.getPassword() + "|" + user.isAdmin();
                             packet.setData(s.getBytes());
                             socket.send(packet);
                         }
@@ -147,15 +138,13 @@ public class ControllerRunnable implements Runnable{
                         packet.setData(s.getBytes());
                         uo.close();
                         socket.send(packet);
-                    }
-                    else if (cmd == CONTROLLER_GET_DATA)
-                    {
+                    } else if (cmd == CONTROLLER_GET_DATA) {
                         //CONTROLLER_GET_DATA + adminId | username
                         //获取某个用户的所有数据
-                        if(splitMsg.length < 2) continue;
+                        if (splitMsg.length < 2) continue;
                         String username = splitMsg[1];
 
-                        String s = CONTROLLER_SEND_DATA_BEGIN +"";
+                        String s = CONTROLLER_SEND_DATA_BEGIN + "";
                         packet.setData(s.getBytes());
                         socket.send(packet);
 
@@ -165,15 +154,15 @@ public class ControllerRunnable implements Runnable{
                         ArrayList<Project> projects = po.getAllProjects(username);
                         ArrayList<TaskItem> tasks = to.getAllTasks(username);
 
-                        for(Project p : projects){
+                        for (Project p : projects) {
                             s = String.format("%c%d|%s|%d|%d", CONTROLLER_SEND_DATA_PROJS,
-                                     p.getId(), p.getName(), p.getColor(), p.getLastModifyTime()
+                                    p.getId(), p.getName(), p.getColor(), p.getLastModifyTime()
                             );
                             packet.setData(s.getBytes());
                             socket.send(packet);
                         }
 
-                        for (TaskItem t : tasks){
+                        for (TaskItem t : tasks) {
                             s = String.format("%c%d|%d|%s|%d%d|%b|%d", CONTROLLER_SEND_DATA_TASKS,
                                     t.getId(), t.getProId(), t.getTaskContent(), t.getTime(), t.getLevel(),
                                     t.isFinished(), t.getLastModifyTime()
@@ -184,33 +173,28 @@ public class ControllerRunnable implements Runnable{
 
                         to.close();
                         po.close();
-                        s = CONTROLLER_SEND_DATA_END +"";
+                        s = CONTROLLER_SEND_DATA_END + "";
                         packet.setData(s.getBytes());
                         socket.send(packet);
-                    }
-                    else if (cmd == CONTROLLER_ADD_USER)
-                    {
+                    } else if (cmd == CONTROLLER_ADD_USER) {
                         //CONTROLLER_ADD_USER + adminId | username | password
-                        if(splitMsg.length<3) continue;
+                        if (splitMsg.length < 3) continue;
                         String username = splitMsg[1];
                         String password = splitMsg[2];
                         UsersOperator uo = new UsersOperator();
                         uo.addUser(username, password);
 
                         uo.close();
-                    }
-                    else if (cmd == CONTROLLER_DEL_USER)
-                    {
+                    } else if (cmd == CONTROLLER_DEL_USER) {
                         //CONTROLLER_DEL_USER + adminId | username
-                        if (splitMsg.length<2) continue;
+                        if (splitMsg.length < 2) continue;
                         String username = splitMsg[1];
                         UsersOperator uo = new UsersOperator();
                         uo.delUser(username);
                         uo.close();
-                    }
-                    else if (cmd == CONTROLLER_EDIT_USER){
+                    } else if (cmd == CONTROLLER_EDIT_USER) {
                         //CONTROLLER_EDIT_USER + adminId | username | password | isAdmin
-                        if(splitMsg.length<4) continue;
+                        if (splitMsg.length < 4) continue;
                         String username, password;
                         boolean isAdmin;
 
@@ -221,21 +205,17 @@ public class ControllerRunnable implements Runnable{
                         uo.editUser(username, password, isAdmin);
                         uo.close();
 
-                    }
-                    else if (cmd == CONTROLLER_KICK_USER_OUT)
-                    {
+                    } else if (cmd == CONTROLLER_KICK_USER_OUT) {
                         //CONTROLLER_KICK_USER_OUT + adminId | userNetkey
-                        if(splitMsg.length<2) continue;
+                        if (splitMsg.length < 2) continue;
                         int netkey = Integer.parseInt(splitMsg[1]);
                         String username = userList.get(netkey).getUsername();
                         userList.remove(netkey);
                         //todo:让Main类把无用数据列表移除
-                    }
-                    else if (cmd == CONTROLLER_ADD_PROJECT)
-                    {
+                    } else if (cmd == CONTROLLER_ADD_PROJECT) {
                         //CONTROLLER_ADD_PROJECT + adminId | username | proId | proName | proColor
                         //lastModifyTime will be set to 0
-                        if(splitMsg.length<5) continue;
+                        if (splitMsg.length < 5) continue;
                         String username = splitMsg[1];
                         long proId = Long.parseLong(splitMsg[2]);
                         String proName = splitMsg[3];
@@ -243,35 +223,29 @@ public class ControllerRunnable implements Runnable{
                         ProjectOperator po = new ProjectOperator();
                         po.addProject(username, proId, proName, proColor, 0);
                         po.close();
-                    }
-                    else if (cmd == CONTROLLER_DEL_PROJECT)
-                    {
+                    } else if (cmd == CONTROLLER_DEL_PROJECT) {
                         //CONTROLLER_DEL_PROJECT + adminId | username | proId
-                        if(splitMsg.length<3) continue;
+                        if (splitMsg.length < 3) continue;
                         String username = splitMsg[1];
                         long proId = Long.parseLong(splitMsg[2]);
                         ProjectOperator po = new ProjectOperator();
                         po.delProject(username, proId);
                         po.close();
-                    }
-                    else if (cmd == CONTROLLER_EDIT_PROJECT)
-                    {
+                    } else if (cmd == CONTROLLER_EDIT_PROJECT) {
                         //CMD + adminId | username | proId | newName | newColor
                         //lastModifyTime + 1
-                        if(splitMsg.length<5) continue;
+                        if (splitMsg.length < 5) continue;
                         String username = splitMsg[1];
                         long proId = Long.parseLong(splitMsg[2]);
                         String name = splitMsg[3];
                         int color = Integer.parseInt(splitMsg[4]);
                         ProjectOperator po = new ProjectOperator();
                         Project p = po.getProject(username, proId);
-                        po.modifyProject(username, proId, name, color, p.getLastModifyTime()+1);
+                        po.modifyProject(username, proId, name, color, p.getLastModifyTime() + 1);
                         po.close();
-                    }
-                    else if (cmd == CONTROLLER_ADD_TASK)
-                    {
+                    } else if (cmd == CONTROLLER_ADD_TASK) {
                         //CONTROLLER_ADD_TASK + adminId | username | taskId | proId | content | time | level
-                        if (splitMsg.length<7) continue;
+                        if (splitMsg.length < 7) continue;
                         String username = splitMsg[1];
                         long taskId = Long.parseLong(splitMsg[2]);
                         long proId = Long.parseLong(splitMsg[3]);
@@ -281,22 +255,18 @@ public class ControllerRunnable implements Runnable{
                         TasksOperator to = new TasksOperator();
                         to.addTask(username, taskId, proId, content, time, level, false, 0);
                         to.close();
-                    }
-                    else if (cmd == CONTROLLER_DEL_TASK)
-                    {
+                    } else if (cmd == CONTROLLER_DEL_TASK) {
                         //CMD + adminId | username | taskId
-                        if(splitMsg.length<3)continue;
+                        if (splitMsg.length < 3) continue;
                         String username = splitMsg[1];
                         long taskId = Long.parseLong(splitMsg[2]);
                         TasksOperator to = new TasksOperator();
                         to.delTask(username, taskId);
                         to.close();
-                    }
-                    else if (cmd == CONTROLLER_EDIT_TASK)
-                    {
+                    } else if (cmd == CONTROLLER_EDIT_TASK) {
                         //CMD + adminId | username | taskId | newProId | newContent | newTime | newLevel | isFinished
                         //lastModifyTime not change
-                        if(splitMsg.length < 8) continue;
+                        if (splitMsg.length < 8) continue;
                         String username = splitMsg[1];
                         long taskId = Long.parseLong(splitMsg[2]);
                         long newProId = Long.parseLong(splitMsg[3]);
@@ -306,12 +276,12 @@ public class ControllerRunnable implements Runnable{
                         boolean isFinished = Boolean.parseBoolean(splitMsg[7]);
                         TasksOperator to = new TasksOperator();
                         TaskItem t = to.getTask(username, taskId);
-                        to.modifyTask(username, taskId, newProId, content, time, level, isFinished, t.getLastModifyTime()+1 );
+                        to.modifyTask(username, taskId, newProId, content, time, level, isFinished, t.getLastModifyTime() + 1);
                         to.close();
                     }
                 }
 
-            } catch (IOException e) {
+            } catch (NumberFormatException | IOException e) {
                 e.printStackTrace();
             }
         }

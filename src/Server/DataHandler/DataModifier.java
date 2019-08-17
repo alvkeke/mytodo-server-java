@@ -26,11 +26,22 @@ public class DataModifier {
                 return;
             }
             String s = COMMAND_OPERATE_SUCCESS + msg[0];
-            int netkey = Integer.parseInt(msg[0]);
-            long proId = Long.parseLong(msg[1]);
-            String proName = msg[2];
-            int proColor = Integer.parseInt(msg[3]);
-            long lastModifyTime = Long.parseLong(msg[4]);
+            int netkey;
+            long proId;
+            String proName;
+            int proColor;
+            long lastModifyTime;
+            try {
+                netkey = Integer.parseInt(msg[0]);
+                proId = Long.parseLong(msg[1]);
+                proName = msg[2];
+                proColor = Integer.parseInt(msg[3]);
+                lastModifyTime = Long.parseLong(msg[4]);
+            } catch (NumberFormatException e){
+                e.printStackTrace();
+                return;
+            }
+
 
             DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
@@ -45,8 +56,15 @@ public class DataModifier {
                 return;
             }
             String s = COMMAND_OPERATE_SUCCESS + msg[0];
-            int netkey = Integer.parseInt(msg[0]);
-            long proId = Long.parseLong(msg[1]);
+            int netkey;
+            long proId;
+            try {
+                netkey = Integer.parseInt(msg[0]);
+                proId = Long.parseLong(msg[1]);
+            } catch (NumberFormatException e){
+                e.printStackTrace();
+                return;
+            }
 
             DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
@@ -60,20 +78,24 @@ public class DataModifier {
             if(msg.length < 8){
                 return;
             }
-            String s = COMMAND_OPERATE_SUCCESS + msg[0];
-            int netkey = Integer.parseInt(msg[0]);
-            long taskId = Long.parseLong(msg[1]);
-            long proId = Long.parseLong(msg[2]);
-            String todo = msg[3];
-            long time = Long.parseLong(msg[4]);
-            int level = Integer.parseInt(msg[5]);
-            boolean isFinished = Boolean.parseBoolean(msg[6]);
-            long lastModifyTime = Long.parseLong(msg[7]);
-
-            DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
+                String s = COMMAND_OPERATE_SUCCESS + msg[0];
+                int netkey = Integer.parseInt(msg[0]);
+                long taskId = Long.parseLong(msg[1]);
+                long proId = Long.parseLong(msg[2]);
+                String todo = msg[3];
+                long time = Long.parseLong(msg[4]);
+                int level = Integer.parseInt(msg[5]);
+                boolean isFinished = Boolean.parseBoolean(msg[6]);
+                long lastModifyTime = Long.parseLong(msg[7]);
+
+                DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
+
                 socket.send(p);
                 callback.createTask(netkey, taskId, proId, todo, time, level, isFinished, lastModifyTime);
+            } catch (NumberFormatException e){
+                e.printStackTrace();
+                return;
             } catch (IOException e) {
                 e.printStackTrace();
                 new DataModifier(callback,socket,address).handle(cmd, data);
@@ -82,15 +104,19 @@ public class DataModifier {
             if(msg.length < 3){
                 return;
             }
-            String s = COMMAND_OPERATE_SUCCESS + msg[0];
-            int netkey = Integer.parseInt(msg[0]);
-            long taskId = Long.parseLong(msg[1]);
-            long proId = Long.parseLong(msg[2]);
-
-            DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
+                String s = COMMAND_OPERATE_SUCCESS + msg[0];
+                int netkey = Integer.parseInt(msg[0]);
+                long taskId = Long.parseLong(msg[1]);
+                long proId = Long.parseLong(msg[2]);
+
+                DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
+
                 socket.send(p);
                 callback.deleteTask(netkey, taskId, proId);
+            } catch (NumberFormatException e){
+                e.printStackTrace();
+                return;
             } catch (IOException e) {
                 e.printStackTrace();
                 new DataModifier(callback,socket,address).handle(cmd, data);
@@ -99,17 +125,21 @@ public class DataModifier {
             if(msg.length < 5){
                 return;
             }
-            String s = COMMAND_OPERATE_SUCCESS + msg[0];
-            int netkey = Integer.parseInt(msg[0]);
-            long proId = Long.parseLong(msg[1]);
-            String proName = msg[2];
-            int proColor = Integer.parseInt(msg[3]);
-            long lastModifyTime = Long.parseLong(msg[4]);
-
-            DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
+                String s = COMMAND_OPERATE_SUCCESS + msg[0];
+                int netkey = Integer.parseInt(msg[0]);
+                long proId = Long.parseLong(msg[1]);
+                String proName = msg[2];
+                int proColor = Integer.parseInt(msg[3]);
+                long lastModifyTime = Long.parseLong(msg[4]);
+
+                DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
+
                 socket.send(p);
                 callback.modifyProject(netkey, proId, proName, proColor, lastModifyTime);
+            } catch (NumberFormatException e){
+                e.printStackTrace();
+                return;
             } catch (IOException e) {
                 e.printStackTrace();
                 new DataModifier(callback,socket,address).handle(cmd, data);
@@ -118,21 +148,26 @@ public class DataModifier {
             if(msg.length < 9){
                 return;
             }
-            String s = COMMAND_OPERATE_SUCCESS + msg[0];
-            int netkey = Integer.parseInt(msg[0]);
-            long taskId = Long.parseLong(msg[1]);
-            long oldProId = Long.parseLong(msg[2]);
-            long newProId = Long.parseLong(msg[3]);
-            String todo = msg[4];
-            long time = Long.parseLong(msg[5]);
-            int level = Integer.parseInt(msg[6]);
-            boolean isFinished = Boolean.parseBoolean(msg[7]);
-            long lastModifyTime = Long.parseLong(msg[8]);
 
-            DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
             try {
+                String s = COMMAND_OPERATE_SUCCESS + msg[0];
+                int netkey = Integer.parseInt(msg[0]);
+                long taskId = Long.parseLong(msg[1]);
+                long oldProId = Long.parseLong(msg[2]);
+                long newProId = Long.parseLong(msg[3]);
+                String todo = msg[4];
+                long time = Long.parseLong(msg[5]);
+                int level = Integer.parseInt(msg[6]);
+                boolean isFinished = Boolean.parseBoolean(msg[7]);
+                long lastModifyTime = Long.parseLong(msg[8]);
+
+                DatagramPacket p = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
+
                 socket.send(p);
                 callback.modifyTask(netkey, taskId, oldProId, newProId, todo, time, level, isFinished, lastModifyTime);
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+                return;
             } catch (IOException e) {
                 e.printStackTrace();
                 new DataModifier(callback,socket,address).handle(cmd, data);

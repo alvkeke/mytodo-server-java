@@ -31,7 +31,12 @@ public class DataRecvHandler {
             s = COMMAND_CONFIRM_DATA + msgs[1];     //dataId
         }
 
-        int netkey = Integer.parseInt(msgs[0]);
+        int netkey;
+        try {
+            netkey = Integer.parseInt(msgs[0]);
+        } catch (NumberFormatException e){
+            return;
+        }
 
         DatagramPacket packet = new DatagramPacket(s.getBytes(), s.getBytes().length, address);
         try {
@@ -39,7 +44,7 @@ public class DataRecvHandler {
 //            socket.setSoTimeout(6000);
             socket.send(packet);
 
-            switch (cmd){
+            switch (cmd) {
                 case COMMAND_SEND_DATA_BEGIN:   //2
                     callback.beginRecvData(netkey);
                     break;
@@ -47,16 +52,19 @@ public class DataRecvHandler {
                     callback.endRecvData(netkey);
                     break;
                 case COMMAND_SEND_DATA_PROJS:   //6
-                    if(msgs.length<6) return;
+                    if (msgs.length < 6) return;
                     callback.recvProject(netkey, Long.parseLong(msgs[2]), msgs[3], Integer.parseInt(msgs[4]), Long.parseLong(msgs[5]));
                     break;
                 case COMMAND_SEND_DATA_TASKS:   //9
-                    if(msgs.length<9) return;
+                    if (msgs.length < 9) return;
                     callback.recvTask(netkey, Long.parseLong(msgs[2]), Long.parseLong(msgs[3]), msgs[4],
                             Long.parseLong(msgs[5]), Integer.parseInt(msgs[6]), Boolean.parseBoolean(msgs[7]),
                             Long.parseLong(msgs[8]));
                     break;
             }
+        } catch (NumberFormatException e){
+            e.printStackTrace();
+            return;
         } catch (IOException e){
             e.printStackTrace();
             new DataRecvHandler(callback, socket, address).handle(cmd, msgs);

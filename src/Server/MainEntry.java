@@ -19,7 +19,7 @@ import java.util.HashMap;
 
 import static Server.Constants.*;
 
-public class Main implements HandlerCallback {
+public class MainEntry implements HandlerCallback {
 
     private final static int MAX_MISSING_HEART_BEAT_TIME = 90000;
 
@@ -30,7 +30,7 @@ public class Main implements HandlerCallback {
 	private ArrayList<UserData> userDataList;
 	private HashMap<Integer, ArrayList<Integer>> confirmLists;
 
-	private Main(){
+	private MainEntry(){
 
 	    userList = new HashMap<>();
 	    confirmLists = new HashMap<>();
@@ -87,14 +87,21 @@ public class Main implements HandlerCallback {
 						System.out.println("<<<<<<<<<<<<<<got error data>>>>>>>>>>>>>>>");
 				    	continue;
 					}
-					int netkey = Integer.parseInt(splitMsg[0]);
 
-					if(userList.get(netkey) == null){
-						System.out.println(">unknown user:\n" + (int)cmd +":"+ data);
+				    int netkey;
+				    try {
+						netkey = Integer.parseInt(splitMsg[0]);
+					} catch (NumberFormatException e){
+				        e.printStackTrace();
+				    	continue;
+					}
+
+					if (userList.get(netkey) == null) {
+						System.out.println(">unknown user:\n" + (int) cmd + ":" + data);
 						String s = COMMAND_YOU_ARE_OFFLINE + "";
 						packet.setData(s.getBytes());
 						socket.send(packet);
-					    continue;
+						continue;
 					}
 
 					if (cmd == COMMAND_LOGOUT) {
@@ -119,9 +126,13 @@ public class Main implements HandlerCallback {
 					}
 					else if (cmd == COMMAND_CONFIRM_DATA)
 					{
-						int dataId = Integer.parseInt(splitMsg[1]);
-						ArrayList<Integer> confirmList = confirmLists.get(netkey);
-						confirmList.remove(Integer.valueOf(dataId));
+						try {
+							int dataId = Integer.parseInt(splitMsg[1]);
+							ArrayList<Integer> confirmList = confirmLists.get(netkey);
+							confirmList.remove(Integer.valueOf(dataId));
+						} catch (NumberFormatException e){
+							e.printStackTrace();
+						}
 					}
 					else if (cmd == COMMAND_CONFIRM_SEND_END)
 					{
@@ -161,7 +172,7 @@ public class Main implements HandlerCallback {
 	private void stop(){stop = true;}
 
 	public static void main(String[] args){
-		Main mc = new Main();
+		MainEntry mc = new MainEntry();
 
 		mc.startRecvData();
 
