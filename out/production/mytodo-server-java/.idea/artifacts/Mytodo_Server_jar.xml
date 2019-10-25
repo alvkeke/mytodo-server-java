@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Mytodo-Server:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Mytodo_Server_jar</output-path>
+    <root id="archive" name="Mytodo-Server.jar">
+      <element id="module-output" name="Mytodo-Server" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../mariadb-java-client-2.4.2.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
